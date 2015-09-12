@@ -91,6 +91,7 @@ var View_Model = function() {
 		if (filename === null || filename === '') return;
 		
 		var callback = function(data) {
+			window.document.title = filename + ' - Run PHP Code';
 			window.location.hash = '#' + filename;
 			window.onbeforeunload = null;
 		};
@@ -112,6 +113,7 @@ var View_Model = function() {
 		
 		var callback = function(data) {
 			self.set_editor_content(data);
+			window.document.title = filename + ' - Run PHP Code';
 			window.location.hash = '#' + filename;
 			window.onbeforeunload = null;
 		};
