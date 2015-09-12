@@ -69,10 +69,13 @@ var View_Model = function() {
 	self.contributors = ko.observableArray([]);
 
 	self.run = function() {
+		var filename = window.location.hash.substring(1);
+		
 		$('input[name="runphp_data"]').val(
 			JSON.stringify({
 				'code': self.editor.getValue(),
 				'action': 'run',
+				'filename': filename,
 				'settings': ko.toJS(self.settings),
 				'bgcolor': $('.ace_gutter').css('backgroundColor'),
 				'color': $('#code_div').css('color')
@@ -81,6 +84,45 @@ var View_Model = function() {
 		$('#runphp_form').submit();
 	};
 
+	self.save_file = function(filename) {
+		if (filename === undefined || typeof filename !== 'string') {
+			filename = prompt('Save as Filename:', window.location.hash.substring(1));
+		}
+		if (filename === null || filename === '') return;
+		
+		var callback = function(data) {
+			window.location.hash = '#' + filename;
+			window.onbeforeunload = null;
+		};
+		$.post('index.php', {
+			runphp_data: JSON.stringify({
+				'code': self.editor.getValue(),
+				'action': 'save',
+				'filename': filename
+			})}, callback, 'text');
+	};
+	
+	self.open_file = function(filename) {
+		if (filename === undefined || typeof filename !== 'string') {
+			filename = prompt('Open Filename:', window.location.hash.substring(1));
+		}
+		if (filename === null || filename === '') return;
+		
+		self.editor.setValue('Loading code...');
+		
+		var callback = function(data) {
+			self.set_editor_content(data);
+			window.location.hash = '#' + filename;
+			window.onbeforeunload = null;
+		};
+		$.post('index.php', {
+			runphp_data: JSON.stringify({
+				'code': self.editor.getValue(),
+				'action': 'open',
+				'filename': filename
+			})}, callback, 'text');
+	};
+	
 	self.result_loaded = function() {
 		if (self.settings.colorize()) {
 			var bgcolor = $('.ace_gutter').css('backgroundColor'); //base a lot of colors off this one
@@ -259,6 +301,20 @@ var View_Model = function() {
 			self.run();
 		}
 	});
+	self.editor.commands.addCommand({
+		name: 'saveCode',
+		bindKey: {win: 'Ctrl-S',  mac: 'Command-S'},
+		exec: function(editor) {
+			self.save_file();
+		}
+	});
+	self.editor.commands.addCommand({
+		name: 'loadCode',
+		bindKey: {win: 'Ctrl-O',  mac: 'Command-O'},
+		exec: function(editor) {
+			self.open_file();
+		}
+	});
 	self.editor.renderer.on('themeLoaded', function() {
 		$(window).resize();
 		$.each(self.themes.light, function(i, theme) {
@@ -385,6 +441,13 @@ $(function() {
 	});
 
 	$('#title_bar .drop, #title_bar button').click(function() { setTimeout(function() {vm.editor.focus();}, 50); });
+
+	if (window.location.hash) {
+		var filename = window.location.hash.substring(1);
+		if (filename !== '') {
+			vm.open_file(filename);
+		}
+	}
 });
 
 //http://stackoverflow.com/questions/5560248/programmatically-lighten-or-darken-a-hex-color

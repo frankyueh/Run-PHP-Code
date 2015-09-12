@@ -26,8 +26,27 @@ if (isset($_POST['runphp_data'])) {
 		echo $runphp->code;
 		die();
 	}
-
+	
+	if ($runphp->action === 'open') {
+		if (substr($runphp->filename, -4) !== '.php') $runphp->filename .= '.php';
+		header('Content-Type: text/plain');
+		echo file_get_contents("save\\{$runphp->filename}");
+		die();
+	}
+	
+	if ($runphp->action == 'save') {
+		if (substr($runphp->filename, -4) !== '.php') $runphp->filename .= '.php';
+		file_put_contents("save\\{$runphp->filename}", $runphp->code);
+		die();
+	}
+	
 	if ($runphp->action == 'run') {
+		
+		if (! empty($runphp->filename)) {
+			if (substr($runphp->filename, -4) !== '.php') $runphp->filename .= '.php';
+			file_put_contents("save\\{$runphp->filename}", $runphp->code);
+		}
+		
 		header('Expires: Mon, 16 Apr 2012 05:00:00 GMT');
 		header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . ' GMT'); 
 		header('Cache-Control: no-store, no-cache, must-revalidate'); 
@@ -92,6 +111,8 @@ else {
 			<div class="drop"><span>File</span>
 				<div>
 					<div class="clickable"><a data-bind="click: php_info">phpinfo()</a></div>
+					<div class="clickable"><a data-bind="click: open_file">Open...</a></div>
+					<div class="clickable"><a data-bind="click: save_file">Save...</a></div>
 					<div class="clickable"><a data-bind="click: remote_import">Remote Import...</a></div>
 					<div class="clickable"><a data-bind="click: download_file">Download...</a></div>
 				</div>
