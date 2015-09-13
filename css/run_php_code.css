@@ -79,3 +79,49 @@ a.button { padding: 6px 0; }
 #help_window .subdrop ul li { line-height: 32px; text-align: left; }
 #help_window .subdrop ul li img { vertical-align: middle; }
 #help_window .subdrop ul li a { text-decoration: none; color: inherit; display: block; }
+
+/*
+ * loading animation
+ * http://codepen.io/blakeandrewwood/pen/OyJwQx
+ */
+.blobs {
+	-webkit-filter: url("#goo");
+	filter: url("#goo");
+	position: absolute;
+	top:0;
+	left:0;
+	bottom:0;
+	right:0;
+}
+.blob {
+	position: absolute;
+	margin: auto;
+	top: 0;
+	bottom: 0;
+	right: 0;
+	left: 0;
+	width: 50px;
+	height: 50px;
+	border-radius: 50%;
+	background-color: #9F3B59;
+}
+.blob:nth-child(1) {
+	animation: blob-left-anim cubic-bezier(0.770, 0.000, 0.175, 1.000) 2s infinite;
+}
+.blob:nth-child(2) {
+	animation: blob-right-anim cubic-bezier(0.770, 0.000, 0.175, 1.000) 2s infinite;
+}
+
+@keyframes blob-left-anim {
+	0% {transform:scale(1.0) translate(0, 0); opacity: 0.00;}
+	33% {transform:scale(0.5) translate(80px, 0); opacity: 0.75;}
+	66% {transform:scale(0.8) translate(0, 0); opacity: 1.00;}
+	100% {transform:scale(1.0) translate(0, 0); opacity: 0.50;}
+}
+
+@keyframes blob-right-anim {
+	0% {transform:scale(1.0) translate(0, 0); opacity: 0.00;}
+	33% {transform:scale(0.5) translate(-80px, 0); opacity: 0.75;}
+	66% {transform:scale(0.8) translate(0, 0); opacity: 1.00;}
+	100% {transform:scale(1.0) translate(0, 0); opacity: 0.50;}
+}

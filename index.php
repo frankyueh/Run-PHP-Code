@@ -30,23 +30,28 @@ if (isset($_POST['runphp_data'])) {
 	if ($runphp->action === 'open') {
 		if (substr($runphp->filename, -4) !== '.php') $runphp->filename .= '.php';
 		header('Content-Type: text/plain');
-		echo file_get_contents("save\\{$runphp->filename}");
+		$filepath = "code\\{$runphp->filename}";
+		if (file_exists($filepath)) {
+			echo file_get_contents($filepath);
+		} else {
+			http_response_code(404);
+		}
 		die();
 	}
 	
 	if ($runphp->action == 'save') {
 		if (substr($runphp->filename, -4) !== '.php') $runphp->filename .= '.php';
-		file_put_contents("save\\{$runphp->filename}", $runphp->code);
+		if (file_put_contents("code\\{$runphp->filename}", $runphp->code) === false) {
+			http_response_code(500);
+		}
 		die();
 	}
 	
 	if ($runphp->action == 'run') {
-		
 		if (! empty($runphp->filename)) {
 			if (substr($runphp->filename, -4) !== '.php') $runphp->filename .= '.php';
-			file_put_contents("save\\{$runphp->filename}", $runphp->code);
+			file_put_contents("code\\{$runphp->filename}", $runphp->code);
 		}
-		
 		header('Expires: Mon, 16 Apr 2012 05:00:00 GMT');
 		header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . ' GMT'); 
 		header('Cache-Control: no-store, no-cache, must-revalidate'); 
@@ -208,6 +213,21 @@ else {
 		<div id="code_div" data-bind="style: { width: code_width() + 'px' }"></div>
 		<div id="result_div" data-bind="visible: !settings.run_external(), style: { width: result_width() + 'px' }"><iframe id="result_frame" name="result_frame" data-bind="event: { load: result_loaded }"></iframe></div>		
 		<div id="resize_bar" data-bind="visible: !settings.run_external(), style: { left: settings.divide_x() + 'px' }"></div>
-		
+
+		<div class="blobs" data-bind="visible: waiting()">
+			<div class="blob"></div>
+			<div class="blob"></div>
+		</div>
+
+		<svg version="1.1" xmlns="http://www.w3.org/2000/svg">
+		<defs>
+			<filter id="goo">
+				<feGaussianBlur in="SourceGraphic" result="blur" stdDeviation="10" />
+				<feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7" result="goo" />
+				<feBlend in2="goo" in="SourceGraphic" result="mix" />
+			</filter>
+		</defs>
+		</svg>
+
 	</body>
 </html>

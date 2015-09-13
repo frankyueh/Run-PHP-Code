@@ -56,6 +56,8 @@ var View_Model = function() {
 	self.settings.pre_wrap = ko.observable(false);
 	self.settings.error_reporting = ko.observable('fatal');
 
+	self.waiting = ko.observable(false);
+
 	self.themes = themes;
 	self.light_theme = ko.observable(true);
 	self.resizing = ko.observable(false);
@@ -86,43 +88,53 @@ var View_Model = function() {
 
 	self.save_file = function(filename) {
 		if (filename === undefined || typeof filename !== 'string') {
-			filename = prompt('Save as Filename:', window.location.hash.substring(1));
+			filename = prompt('Save as:', window.location.hash.substring(1));
 		}
 		if (filename === null || filename === '') return;
 		
-		var callback = function(data) {
-			window.document.title = filename + ' - Run PHP Code';
-			window.location.hash = '#' + filename;
-			window.onbeforeunload = null;
+		self.waiting(true);
+		self.set_editor_title(filename);
+		
+		var successcb = function() {
+			self.waiting(false);
 		};
-		$.post('index.php', {
-			runphp_data: JSON.stringify({
+		var failcb = function () {
+			alert("Failed to save file: " + filename);
+			self.waiting(false);
+		};
+		$.ajax('index.php', {
+			data: {runphp_data: JSON.stringify({
 				'code': self.editor.getValue(),
 				'action': 'save',
 				'filename': filename
-			})}, callback, 'text');
+			})}, type: "POST", error: failcb, success: successcb
+		});
 	};
 	
 	self.open_file = function(filename) {
 		if (filename === undefined || typeof filename !== 'string') {
-			filename = prompt('Open Filename:', window.location.hash.substring(1));
+			filename = prompt('Open file:', window.location.hash.substring(1));
 		}
 		if (filename === null || filename === '') return;
 		
-		self.editor.setValue('Loading code...');
+		self.waiting(true);
+		self.set_editor_title(filename);
 		
-		var callback = function(data) {
-			self.set_editor_content(data);
-			window.document.title = filename + ' - Run PHP Code';
-			window.location.hash = '#' + filename;
-			window.onbeforeunload = null;
+		var successcb = function(data) {
+			self.set_editor_content(data, true);
+			self.waiting(false);
 		};
-		$.post('index.php', {
-			runphp_data: JSON.stringify({
+		var failcb = function () {
+			alert("Failed to open file: " + filename);
+			self.waiting(false);
+		};
+		$.ajax('index.php', {
+			data: {runphp_data: JSON.stringify({
 				'code': self.editor.getValue(),
 				'action': 'open',
 				'filename': filename
-			})}, callback, 'text');
+			})}, type: "POST", error: failcb, success: successcb
+		});
 	};
 	
 	self.result_loaded = function() {
@@ -140,8 +152,12 @@ var View_Model = function() {
 	};
 
 	self.clear = function() {
-		var answer = confirm("Are you sure you want to clear the editor?");
-		if (answer) { self.reset_editor(); self.run(); }
+		if (! self.editor.getSession().getUndoManager().hasUndo() ||
+				confirm("Are you sure you want to clear the editor?")) {
+			self.reset_editor();
+			self.set_editor_title();
+			self.run();
+		}
 	};
 
 	self.php_info = function() {
@@ -179,7 +195,7 @@ var View_Model = function() {
 		var code_url = prompt('Always make sure imported code is safe before running!!!\n\nSupported services: gist.GitHub.com, PasteBin.com, Pastie.org\n\nEnter URL:');
 		if (code_url === null || code_url === '') return;
 		code_id = get_id_from_url(code_url);
-		self.editor.setValue('Loading code...');
+		self.waiting(true);
 		
 		if (code_url.toLowerCase().indexOf('github.com') !== -1) {
 			$.get('proxy.php', {url: 'https://api.github.com/gists/' + code_id}, function(data) {
@@ -187,21 +203,24 @@ var View_Model = function() {
 					data = $.parseJSON(data);
 					var content = '';
 					for (var i in data.files) content += data.files[i].content + '\n';
-					self.set_editor_content(content);
+					self.set_editor_content(content, false);
 				}
 				else {
-					self.set_editor_content(data);
+					self.set_editor_content(data, false);
 				}
+				self.waiting(false);
 			}, 'text');
 		}
 		else if (code_url.toLowerCase().indexOf('pastebin.com') !== -1) {
 			$.get('proxy.php', {url: 'http://pastebin.com/raw.php?i=' + code_id}, function(data) {
-				self.set_editor_content(data);
+				self.set_editor_content(data, false);
+				self.waiting(false);
 			}, 'text');
 		}
 		else if (code_url.toLowerCase().indexOf('pastie.org') !== -1) {
 			$.get('proxy.php', {url: 'http://pastie.org/pastes/' + code_id + '/download'}, function(data) {
-				self.set_editor_content(data);
+				self.set_editor_content(data, false);
+				self.waiting(false);
 			}, 'text');
 		}
 
@@ -220,7 +239,7 @@ var View_Model = function() {
 
 	self.change_setting = function() {
 		self.save_settings();
-	}
+	};
 
 	self.resize_window = function(width, height) {
 		self.window_width(width);
@@ -232,6 +251,26 @@ var View_Model = function() {
 		self.editor.setValue("<?php\n\n");
 		self.editor.gotoLine(3);
 		self.editor.focus();
+		setTimeout(function() { self.editor.getSession().getUndoManager().reset(); }, 0);
+	};
+	
+	self.set_editor_content = function(content, resethistory) {
+		self.editor.setValue(content);
+		self.editor.gotoLine(1);
+		self.editor.focus();
+		if (resethistory) {
+			setTimeout(function() { self.editor.getSession().getUndoManager().reset(); }, 0);
+		}
+	};
+
+	self.set_editor_title = function(filename) {
+		if (filename === undefined || filename === null || filename === '') {
+			window.document.title = 'Run PHP Code';
+			window.location.hash = '';
+		} else {
+			window.document.title = filename + ' - Run PHP Code';
+			window.location.hash = '#' + filename;
+		}
 		window.onbeforeunload = null;
 	};
 
@@ -283,12 +322,6 @@ var View_Model = function() {
 		$('.hovered').each(function() {
 			$(this).css('backgroundColor', shadeColor($(this).css('backgroundColor'),5));
 		});
-	}
-
-	self.set_editor_content = function(content) {
-		self.editor.setValue(content);
-		self.editor.gotoLine(1);
-		self.editor.focus();
 	};
 
 	self.load_settings();
@@ -336,9 +369,19 @@ var View_Model = function() {
 	self.reset_editor();
 
 	window.onbeforeunload = null;
-	self.editor.on('change', function() {
-		if (window.onbeforeunload == null) {
-			window.onbeforeunload = function() { return "You have made changes in your editor."; };
+	self.editor.on('input', function() {
+		if (self.editor.getSession().getUndoManager().hasUndo()) {
+			if (window.onbeforeunload === null) {
+				window.onbeforeunload = function() { return "You have made changes in your editor."; };
+			}
+			if ('*' !== document.title.substring(0, 1)) {
+				document.title = '*' + document.title;
+			}
+		} else {
+			window.onbeforeunload = null;
+			if ('*' === document.title.substring(0, 1)) {
+				document.title = document.title.substring(1);
+			}
 		}
 	});
 
