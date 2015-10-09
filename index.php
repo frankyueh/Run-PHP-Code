@@ -16,6 +16,8 @@ define('NL', PHP_EOL);
 function u(&$v, $default = null) { return isset($v) ? $v : $default; }
 function ua($array, $key, $default = null) { return isset($array[$key]) ? $array[$key] : $default; }
 
+define(CODE_DIR, "code\\");
+
 if (isset($_POST['runphp_data'])) {
 	$runphp = json_decode($_POST['runphp_data']);
 
@@ -30,7 +32,7 @@ if (isset($_POST['runphp_data'])) {
 	if ($runphp->action === 'open') {
 		if (substr($runphp->filename, -4) !== '.php') $runphp->filename .= '.php';
 		header('Content-Type: text/plain');
-		$filepath = "code\\{$runphp->filename}";
+		$filepath = CODE_DIR . $runphp->filename;
 		if (file_exists($filepath)) {
 			echo file_get_contents($filepath);
 		} else {
@@ -41,17 +43,32 @@ if (isset($_POST['runphp_data'])) {
 	
 	if ($runphp->action == 'save') {
 		if (substr($runphp->filename, -4) !== '.php') $runphp->filename .= '.php';
-		if (file_put_contents("code\\{$runphp->filename}", $runphp->code) === false) {
+		if (file_put_contents(CODE_DIR . $runphp->filename, $runphp->code) === false) {
 			http_response_code(500);
 		}
 		die();
 	}
 	
-	if ($runphp->action == 'run') {
-		if (! empty($runphp->filename)) {
-			if (substr($runphp->filename, -4) !== '.php') $runphp->filename .= '.php';
-			file_put_contents("code\\{$runphp->filename}", $runphp->code);
+	if ($runphp->action == 'recentsaved') {
+		$files = [];
+		foreach (scandir(CODE_DIR) as $file) {
+			if (preg_match('/\.php$/i', $file)) {
+				$files[$file] = filemtime(CODE_DIR . $file);
+			}
 		}
+		arsort($files);
+		
+		$file_objs = [];
+		foreach (array_keys($files) as $file) {
+			$file_objs[] = (object)['file' => $file];
+		}
+		
+		header('Content-Type: application/json');
+		echo json_encode($file_objs);
+		die();
+	}
+	
+	if ($runphp->action == 'run') {
 		header('Expires: Mon, 16 Apr 2012 05:00:00 GMT');
 		header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . ' GMT'); 
 		header('Cache-Control: no-store, no-cache, must-revalidate'); 
@@ -113,11 +130,19 @@ else {
 		<div id="title_bar">
 			<div id="title">Run PHP Code</div>
 				
-			<div class="drop"><span>File</span>
+			<div class="drop" data-bind="event: { mouseover: load_recentsaved }"><span>File</span>
 				<div>
 					<div class="clickable"><a data-bind="click: php_info">phpinfo()</a></div>
 					<div class="clickable"><a data-bind="click: open_file">Open...</a></div>
 					<div class="clickable"><a data-bind="click: save_file">Save...</a></div>
+					<div class="subdrop">
+						Recent
+						<div>
+							<!-- ko foreach: recentsaved -->
+								<div class="clickable" data-bind="attr: { 'data-value': file }, click: function () { $parent.open_file(file); }, text: file"></div>	
+							<!-- /ko -->
+						</div>
+					</div>
 					<div class="clickable"><a data-bind="click: remote_import">Remote Import...</a></div>
 					<div class="clickable"><a data-bind="click: download_file">Download...</a></div>
 				</div>

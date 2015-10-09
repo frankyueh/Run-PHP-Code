@@ -69,15 +69,17 @@ var View_Model = function() {
 	self.result_width = ko.observable(0);
 	self.contributors_loaded = false;
 	self.contributors = ko.observableArray([]);
+	self.recentsaved_loaded = false;
+	self.recentsaved = ko.observableArray([]);
 
 	self.run = function() {
 		var filename = window.location.hash.substring(1);
+		if (filename != '') self.save_file(filename);
 		
 		$('input[name="runphp_data"]').val(
 			JSON.stringify({
 				'code': self.editor.getValue(),
 				'action': 'run',
-				'filename': filename,
 				'settings': ko.toJS(self.settings),
 				'bgcolor': $('.ace_gutter').css('backgroundColor'),
 				'color': $('#code_div').css('color')
@@ -284,6 +286,27 @@ var View_Model = function() {
 			}, 'json');
 		}
 	};
+	
+	self.load_recentsaved = function() {
+		if (self.recentsaved_loaded === false) {
+			self.recentsaved_loaded = true;
+			
+			var successcb = function(data) {
+				for (var i = 0; i < data.length; i++) {
+					self.recentsaved.push(data[i]);
+				}
+			};
+			var failcb = function () {
+				alert("Failed to load recently saved.");
+				self.waiting(false);
+			};
+			$.ajax('index.php', {
+				data: {runphp_data: JSON.stringify({
+					'action': 'recentsaved'
+				})}, type: "POST", error: failcb, success: successcb
+			});
+		}
+	};
 
 	self.generate_theme_colors = function() {
 		var bgcolor = $('.ace_gutter').css('backgroundColor'); //base a lot of colors off this one
@@ -323,7 +346,7 @@ var View_Model = function() {
 			$(this).css('backgroundColor', shadeColor($(this).css('backgroundColor'),5));
 		});
 	};
-
+	
 	self.load_settings();
 
 	self.editor = ace.edit("code_div");
